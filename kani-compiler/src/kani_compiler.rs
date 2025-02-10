@@ -37,7 +37,7 @@ use tracing::debug;
 /// This may require multiple runs of the rustc driver ([RunCompiler::run]).
 pub fn run(args: Vec<String>) {
     let mut kani_compiler = KaniCompiler::new();
-    kani_compiler.run(args);
+    kani_compiler.run(args, None);
 }
 
 /// Configure the LLBC backend (Aeneas's IR).
@@ -77,7 +77,59 @@ fn backend(queries: Arc<Mutex<QueryDb>>) -> Box<CodegenBackend> {
 ///
 /// It is responsible for initializing the query database, as well as controlling the compiler
 /// state machine.
-struct KaniCompiler {
+struct CallbackCombiner<'a> {
+    pub cb1: Option<&'a mut (dyn Callbacks + Send)>,
+    pub cb2: Option<&'a mut (dyn Callbacks + Send)>,
+}
+fn compilation_both_continue(a: Compilation, b: Compilation) -> Compilation {
+    match (a, b) {
+        (Compilation::Continue, Compilation::Continue) => {Compilation::Continue},
+        (_, _) => {Compilation::Stop}
+    }
+}
+
+impl Callbacks for CallbackCombiner<'_> {
+    fn config(&mut self, config: &mut rustc_interface::interface::Config) {
+        match &mut self.cb1 {
+            Some(cb) => {cb.config(config);}
+            None => {}
+        }   
+        match &mut self.cb2 {
+            Some(cb) => {cb.config(config);}
+            None => {}
+        }   
+    }
+    fn after_analysis<'tcx>(
+            &mut self,
+            compiler: &rustc_interface::interface::Compiler,
+            tcx: TyCtxt<'tcx>,
+        ) -> Compilation {
+            let cb1_result = match &mut self.cb1 {
+                Some(cb) => {cb.after_analysis(compiler, tcx)}
+                None => {Compilation::Continue}
+            };
+            let cb2_result = match &mut self.cb2 {
+                Some(cb) => {cb.after_analysis(compiler, tcx)}
+                None => {Compilation::Continue}
+            };
+        compilation_both_continue(cb1_result, cb2_result)
+    }
+    // fn after_crate_root_parsing(
+    //         &mut self,
+    //         _compiler: &rustc_interface::interface::Compiler,
+    //         _queries: &rustc_ast::Crate,
+    //     ) -> Compilation {
+        
+    // }
+    // fn after_expansion<'tcx>(
+    //         &mut self,
+    //         _compiler: &rustc_interface::interface::Compiler,
+    //         _tcx: TyCtxt<'tcx>,
+    //     ) -> Compilation {
+        
+    // }
+}
+pub struct KaniCompiler {
     /// Store the query database. The queries should be initialized as part of `config` when the
     /// compiler state is Init.
     /// Note that we need to share the queries with the backend before `config` is called.
@@ -94,10 +146,11 @@ impl KaniCompiler {
     ///
     /// Since harnesses may have different attributes that affect compilation, Kani compiler can
     /// actually invoke the rust compiler multiple times.
-    pub fn run(&mut self, args: Vec<String>) {
+    pub fn run<'b,'a: 'b>(&'a mut self, args: Vec<String>, opt_callbacks: Option<&'b mut (dyn Callbacks + Send)>) {
         debug!(?args, "run_compilation_session");
         let queries = self.queries.clone();
-        let mut compiler = RunCompiler::new(&args, self);
+        let mut cb = CallbackCombiner{cb1: Some(self), cb2: opt_callbacks};
+        let mut compiler = RunCompiler::new(&args, &mut cb);
         compiler.set_make_codegen_backend(Some(Box::new(move |_cfg| backend(queries))));
         compiler.run();
     }

@@ -46,23 +46,21 @@ mod codegen_aeneas_llbc;
 #[cfg(feature = "cprover")]
 mod codegen_cprover_gotoc;
 mod intrinsics;
-mod kani_compiler;
+pub mod kani_compiler;
 mod kani_middle;
 mod kani_queries;
 mod session;
 
 use rustc_driver::{RunCompiler, TimePassesCallbacks};
-use std::env;
 
 /// Main function. Configure arguments and run the compiler.
-fn main() {
+pub fn run(args: Vec<String>) {
     session::init_panic_hook();
-    let (kani_compiler, rustc_args) = is_kani_compiler(env::args().collect());
+    let (kani_compiler, rustc_args) = is_kani_compiler(args);
 
     // Configure and run compiler.
     if kani_compiler {
-        kani_compiler::run(rustc_args.clone());
-        println!("{:?}",rustc_args);
+        kani_compiler::run(rustc_args);
     } else {
         let mut callbacks = TimePassesCallbacks::default();
         let compiler = RunCompiler::new(&rustc_args, &mut callbacks);

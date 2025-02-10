@@ -124,7 +124,10 @@ fn hier_logs(args: &Arguments, filter: EnvFilter) {
             .with_verbose_exit(true)
             .with_indent_amount(4),
     );
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+    match tracing::subscriber::set_global_default(subscriber) {
+        Err(_) => {}
+        Ok(_) => {}
+    };
 }
 
 pub fn init_panic_hook() {

@@ -10,6 +10,7 @@ use std::io::IsTerminal;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::str::FromStr;
 use std::sync::Mutex;
 use std::time::Instant;
 use strum_macros::Display;
@@ -58,7 +59,10 @@ pub enum InstallType {
 impl KaniSession {
     pub fn new(args: VerificationArgs) -> Result<Self> {
         init_logger(&args);
-        let install = InstallType::new()?;
+        let install = match InstallType::new() {
+            Err(e) => {InstallType::DevRepo(std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani")?))},
+            Ok(i) => {i}
+        };
 
         Ok(KaniSession {
             args,
@@ -345,7 +349,11 @@ impl InstallType {
         match self {
             Self::DevRepo(_) => {
                 // Use bin_folder to hide debug/release differences.
-                let path = bin_folder()?.join("kani-compiler");
+                let path = match bin_folder() {
+                    // Ok(b) => {b.join("kani-compiler")}
+                    Err(e) => {std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani/target/debug/kani-compiler").unwrap())}
+                    Ok(e) => {std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani/target/debug/kani-compiler").unwrap())}
+                };
                 expect_path(path)
             }
             Self::Release(release) => {
