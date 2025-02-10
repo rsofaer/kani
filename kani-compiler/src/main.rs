@@ -61,8 +61,7 @@ fn main() {
 
     // Configure and run compiler.
     if kani_compiler {
-        kani_compiler::run(rustc_args.clone());
-        println!("{:?}",rustc_args);
+        kani_compiler::run(rustc_args);
     } else {
         let mut callbacks = TimePassesCallbacks::default();
         let compiler = RunCompiler::new(&rustc_args, &mut callbacks);
