@@ -21,7 +21,7 @@ pub fn playback_cargo(args: CargoPlaybackArgs) -> Result<()> {
 }
 
 pub fn playback_standalone(args: KaniPlaybackArgs) -> Result<()> {
-    let install = InstallType::new()?;
+    let install = InstallType::new(&None)?;
     let artifact = build_test(&install, &args)?;
     debug!(?artifact, "playback_standalone");
 
@@ -93,7 +93,7 @@ fn build_test(install: &InstallType, args: &KaniPlaybackArgs) -> Result<PathBuf>
 
 /// Invokes cargo test using Kani compiler and the provided arguments.
 fn cargo_test(args: CargoPlaybackArgs) -> Result<()> {
-    let install = InstallType::new()?;
+    let install = InstallType::new(&None)?;
     let mut cmd = setup_cargo_command()?;
 
     let rustc_args = base_rustc_flags(LibConfig::new(lib_playback_folder()?));

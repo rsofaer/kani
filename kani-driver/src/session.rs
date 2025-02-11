@@ -59,10 +59,7 @@ pub enum InstallType {
 impl KaniSession {
     pub fn new(args: VerificationArgs) -> Result<Self> {
         init_logger(&args);
-        let install = match InstallType::new() {
-            Err(e) => {InstallType::DevRepo(std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani")?))},
-            Ok(i) => {i}
-        };
+        let install = InstallType::new(&args.kani_dir)?;
 
         Ok(KaniSession {
             args,
@@ -324,8 +321,12 @@ pub fn toolchain_shorthand() -> String {
 }
 
 impl InstallType {
-    pub fn new() -> Result<Self> {
+    pub fn new(override_path: &Option<PathBuf>) -> Result<Self> {
         // Case 1: We've checked out the development repo and we're built under `target/kani`
+        match override_path {
+            Some(path) => { return Ok(InstallType::DevRepo(path.clone())) }
+            None => {}
+        }
         let mut path = bin_folder()?;
         if path.ends_with("target/kani/bin") {
             path.pop();
@@ -347,14 +348,13 @@ impl InstallType {
 
     pub fn kani_compiler(&self) -> Result<PathBuf> {
         match self {
-            Self::DevRepo(_) => {
+            Self::DevRepo(kp) => {
                 // Use bin_folder to hide debug/release differences.
-                let path = match bin_folder() {
-                    // Ok(b) => {b.join("kani-compiler")}
-                    Err(e) => {std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani/target/debug/kani-compiler").unwrap())}
-                    Ok(e) => {std::env::home_dir().unwrap().join(PathBuf::from_str("workspace/model2verus/kani/target/debug/kani-compiler").unwrap())}
-                };
-                expect_path(path)
+                let path = bin_folder()?.join("kani-compiler");
+                match path.exists() {
+                    true => expect_path(path),
+                    false => expect_path(kp.join("target/debug/kani-compiler"))
+                }
             }
             Self::Release(release) => {
                 let path = release.join("bin/kani-compiler");
@@ -416,7 +416,7 @@ fn init_logger(args: &VerificationArgs) {
 // For release versions of Kani, we use a version of cargo that's in the toolchain that's been symlinked during `cargo-kani` setup. This will allow
 // Kani to remove the runtime dependency on rustup later on.
 pub fn setup_cargo_command() -> Result<Command> {
-    let install_type = InstallType::new()?;
+    let install_type = InstallType::new(&None)?;
 
     let cmd = match install_type {
         InstallType::DevRepo(_) => {
