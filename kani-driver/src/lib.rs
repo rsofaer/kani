@@ -20,7 +20,7 @@ mod coverage;
 mod harness_runner;
 mod list;
 mod metadata;
-mod project;
+pub mod project;
 pub mod session;
 mod util;
 mod version;
