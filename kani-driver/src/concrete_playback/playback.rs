@@ -94,7 +94,7 @@ fn build_test(install: &InstallType, args: &KaniPlaybackArgs) -> Result<PathBuf>
 /// Invokes cargo test using Kani compiler and the provided arguments.
 fn cargo_test(args: CargoPlaybackArgs) -> Result<()> {
     let install = InstallType::new(&None)?;
-    let mut cmd = setup_cargo_command()?;
+    let mut cmd = setup_cargo_command(&None)?;
 
     let rustc_args = base_rustc_flags(LibConfig::new(lib_playback_folder()?));
     let mut cargo_args: Vec<OsString> = vec!["test".into()];
