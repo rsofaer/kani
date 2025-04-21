@@ -10,6 +10,7 @@ use std::io::IsTerminal;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::str::FromStr;
 use std::sync::Mutex;
 use std::time::Instant;
 use strum_macros::Display;
@@ -58,7 +59,7 @@ pub enum InstallType {
 impl KaniSession {
     pub fn new(args: VerificationArgs) -> Result<Self> {
         init_logger(&args);
-        let install = InstallType::new()?;
+        let install = InstallType::new(&args.kani_dir)?;
 
         Ok(KaniSession {
             args,
@@ -320,8 +321,12 @@ pub fn toolchain_shorthand() -> String {
 }
 
 impl InstallType {
-    pub fn new() -> Result<Self> {
+    pub fn new(override_path: &Option<PathBuf>) -> Result<Self> {
         // Case 1: We've checked out the development repo and we're built under `target/kani`
+        match override_path {
+            Some(path) => { return Ok(InstallType::DevRepo(path.clone())) }
+            None => {}
+        }
         let mut path = bin_folder()?;
         if path.ends_with("target/kani/bin") {
             path.pop();
@@ -343,10 +348,13 @@ impl InstallType {
 
     pub fn kani_compiler(&self) -> Result<PathBuf> {
         match self {
-            Self::DevRepo(_) => {
+            Self::DevRepo(kp) => {
                 // Use bin_folder to hide debug/release differences.
                 let path = bin_folder()?.join("kani-compiler");
-                expect_path(path)
+                match path.exists() {
+                    true => expect_path(path),
+                    false => expect_path(kp.join("target/debug/kani-compiler"))
+                }
             }
             Self::Release(release) => {
                 let path = release.join("bin/kani-compiler");
@@ -400,15 +408,15 @@ fn init_logger(args: &VerificationArgs) {
             .with_ansi(use_colors)
             .with_target(true),
     );
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+    let _ = tracing::subscriber::set_global_default(subscriber);
 }
 
 // Setup the default version of cargo being run, based on the type/mode of installation for kani
 // If kani is being run in developer mode, then we use the one provided by rustup as we can assume that the developer will have rustup installed
 // For release versions of Kani, we use a version of cargo that's in the toolchain that's been symlinked during `cargo-kani` setup. This will allow
 // Kani to remove the runtime dependency on rustup later on.
-pub fn setup_cargo_command() -> Result<Command> {
-    let install_type = InstallType::new()?;
+pub fn setup_cargo_command(override_path: &Option<PathBuf>) -> Result<Command> {
+    let install_type = InstallType::new(override_path)?;
 
     let cmd = match install_type {
         InstallType::DevRepo(_) => {

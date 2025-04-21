@@ -346,6 +346,11 @@ pub struct VerificationArgs {
 
     #[command(flatten)]
     pub common_args: CommonArgs,
+
+    /// Path used to explicitly set the Kani directory in order to
+    /// find libstd.rlib when using Kani as a library.
+    #[arg(long)]
+    pub kani_dir: Option<PathBuf>,
 }
 
 impl VerificationArgs {

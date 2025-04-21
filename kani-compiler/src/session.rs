@@ -72,12 +72,14 @@ static JSON_PANIC_HOOK: LazyLock<Box<dyn Fn(&panic::PanicHookInfo<'_>) + Sync + 
     });
 
 /// Initialize compiler session.
-pub fn init_session(args: &Arguments, json_hook: bool) {
+pub fn init_session(args: &Arguments, json_hook: bool ) {
     // Initialize the rustc logger using value from RUSTC_LOG. We keep the log control separate
     // because we cannot control the RUSTC log format unless if we match the exact tracing
     // version used by RUSTC.
-    let handler = EarlyDiagCtxt::new(ErrorOutputType::default());
-    rustc_driver::init_rustc_env_logger(&handler);
+    if false {
+        let handler = EarlyDiagCtxt::new(ErrorOutputType::default());
+        rustc_driver::init_rustc_env_logger(&handler);
+    }
 
     // Install Kani panic hook.
     if json_hook {
@@ -124,7 +126,10 @@ fn hier_logs(args: &Arguments, filter: EnvFilter) {
             .with_verbose_exit(true)
             .with_indent_amount(4),
     );
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+    match tracing::subscriber::set_global_default(subscriber) {
+        Err(_) => {}
+        Ok(_) => {}
+    };
 }
 
 pub fn init_panic_hook() {

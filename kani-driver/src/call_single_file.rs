@@ -24,7 +24,7 @@ impl LibConfig {
             "-L",
             path.to_str().unwrap(),
             "--extern",
-            "kani",
+            "force:kani",
             "--extern",
             kani_std_wrapper.as_str(),
         ]

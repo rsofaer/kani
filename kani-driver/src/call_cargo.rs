@@ -100,7 +100,7 @@ crate-type = ["lib"]
         full_path.push("library");
 
         // Since we are verifying the standard library, we set the reachability to all crates.
-        let mut cmd = setup_cargo_command()?;
+        let mut cmd = setup_cargo_command(&None)?;
         cmd.args(&cargo_args)
             .current_dir(krate_path)
             .env("RUSTC", &self.kani_compiler)
@@ -142,7 +142,10 @@ crate-type = ["lib"]
             fs::remove_dir_all(&target_dir)?;
         }
 
-        let lib_path = lib_folder().unwrap();
+        let lib_path = match &self.args.kani_dir {
+            None => lib_folder().unwrap(),
+            Some(p) => p.join("target/kani/lib").canonicalize().unwrap()
+        };
         let mut rustc_args = self.kani_rustc_flags(LibConfig::new(lib_path));
         rustc_args.push(to_rustc_arg(self.kani_compiler_flags()).into());
 
@@ -198,7 +201,7 @@ crate-type = ["lib"]
         let mut failed_targets = vec![];
         for package in packages {
             for verification_target in package_targets(&self.args, package) {
-                let mut cmd = setup_cargo_command()?;
+                let mut cmd = setup_cargo_command(&self.args.kani_dir)?;
                 cmd.args(&cargo_args)
                     .args(vec!["-p", &package.id.to_string()])
                     .args(verification_target.to_args())
@@ -369,7 +372,7 @@ crate-type = ["lib"]
         package_names
             .iter()
             .map(|pkg| {
-                let mut cmd = setup_cargo_command()?;
+                let mut cmd = setup_cargo_command(&None)?;
                 cmd.arg("pkgid");
                 if let Some(path) = &self.args.cargo.manifest_path {
                     cmd.arg("--manifest-path");
