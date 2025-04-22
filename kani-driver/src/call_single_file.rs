@@ -58,7 +58,11 @@ impl KaniSession {
         }
 
         let lib_path = lib_folder().unwrap();
-        let mut rustc_args = self.kani_rustc_flags(LibConfig::new(lib_path));
+
+        let mut rustc_args = match &self.args.kani_dir {
+            None => self.kani_rustc_flags(LibConfig::new(lib_path)),
+            Some(kd) => self.kani_rustc_flags(LibConfig::new(kd.to_path_buf().join("target").join("kani").join("lib"))),
+        };
         rustc_args.push(file.into());
         rustc_args.push("--out-dir".into());
         rustc_args.push(OsString::from(outdir.as_os_str()));
